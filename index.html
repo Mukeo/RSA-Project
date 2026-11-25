@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSA Cryptosystem | Interactive Simulator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-wrapper">
+        <!-- LEFT: CLIENT PANE -->
+        <div class="client-pane">
+            <div class="pane-top-row">
+                <div class="badge-client">
+                    <span>●</span> Client
+                </div>
+                <div class="badge-mode" id="badge-auth-mode">AUTH MODE</div>
+            </div>
+
+            <!-- Tab switcher -->
+            <div class="nav-tabs">
+                <button class="nav-tab active" id="tab-login" onclick="setAuthMode('login')">Sign in</button>
+                <button class="nav-tab" id="tab-register" onclick="setAuthMode('register')">Register</button>
+                <button class="nav-tab" id="tab-play" onclick="setAuthMode('playground')">Playground</button>
+            </div>
+
+            <!-- AUTH FORM (Sign In / Register) -->
+            <div id="auth-form-container">
+                <h1 class="title-signin" id="ui-title">Sign in</h1>
+
+                <!-- Presets -->
+                <div class="presets-row">
+                    <button class="preset-chip" onclick="loadPreset('praveen')">Praveen (Valid)</button>
+                    <button class="preset-chip" onclick="loadPreset('wrong')">Test Wrong Pass</button>
+                    <button class="preset-chip" onclick="loadPreset('alice')">Alice (New User)</button>
+                </div>
+
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label class="form-label" for="username-input">Username</label>
+                    </div>
+                    <div class="input-container">
+                        <input type="text" id="username-input" class="form-input" value="Praveen" placeholder="Enter username" autocomplete="off" oninput="onInputChanged()" />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label class="form-label" for="password-input">Password</label>
+                        <button type="button" class="btn-toggle-eye" id="btn-toggle-pass" onclick="togglePasswordVisibility()">Hide</button>
+                    </div>
+                    <div class="input-container">
+                        <input type="text" id="password-input" class="form-input" value="SRM123" placeholder="Enter password" autocomplete="off" oninput="onInputChanged()" />
+                    </div>
+                </div>
+
+                <button id="btn-submit" class="btn-signin" onclick="submitAuth()">Sign in</button>
+
+                <!-- Public Key Received Badge -->
+                <div class="card-public-key">
+                    <div class="label">Public key received</div>
+                    <div class="val" id="client-public-key">(17, 3233)</div>
+                </div>
+
+                <!-- Status Indicator -->
+                <div class="login-status-box success" id="status-box">
+                    <div class="status-indicator"></div>
+                    <div class="status-text" id="client-login-status">Login successful</div>
+                </div>
+            </div>
+
+            <!-- ARBITRARY PLAYGROUND SECTION -->
+            <div id="playground-container" style="display: none;">
+                <h1 class="title-signin">Playground</h1>
+                <p style="font-size: 13px; color: var(--text-dim); margin-bottom: 16px;">Test encrypting and decrypting any custom message with the active RSA keys.</p>
+
+                <div class="form-group">
+                    <label class="form-label">Plaintext Input</label>
+                    <input type="text" id="play-plain" class="form-input" value="Hello World" placeholder="Type text to encrypt" />
+                    <button class="btn-signin" style="margin-top: 8px;" onclick="runPlaygroundEncrypt()">Encrypt Text</button>
+                </div>
+
+                <div class="form-group" style="margin-top: 18px;">
+                    <label class="form-label">Ciphertext (Numbers)</label>
+                    <input type="text" id="play-cipher" class="form-input" placeholder="Space-separated cipher numbers" />
+                    <button class="btn-signin" style="margin-top: 8px; background: #27272a; color: #ffffff; border: 1px solid #3f3f46;" onclick="runPlaygroundDecrypt()">Decrypt Cipher</button>
+                </div>
+
+                <div class="card-public-key" style="margin-top: 14px;">
+                    <div class="label">Result</div>
+                    <div class="val" id="play-result" style="font-size: 13px; word-break: break-all;">-</div>
+                </div>
+            </div>
+
+            <!-- ACTIONS FOOTER -->
+            <div class="client-footer-actions">
+                <button class="btn-action-outline" onclick="regenerateKeys()">
+                    <span>⚡</span> Generate New RSA Primes
+                </button>
+                <button class="btn-action-outline" onclick="resetDefaultKeys()">
+                    <span>↺</span> Reset to Default (p=61, q=53)
+                </button>
+                <button class="btn-action-outline" onclick="showRegisteredUsers()">
+                    <span>👥</span> View Registered Accounts
+                </button>
+            </div>
+        </div>
+
+        <!-- RIGHT: BACKEND PROCESSING -->
+        <div class="backend-pane">
+            <div class="backend-top-bar">
+                <div class="backend-title">Backend processing</div>
+                <div class="live-badge" id="backend-status-badge">ONLINE • RSA ENGINE</div>
+            </div>
+
+            <!-- STEP 1: Key generation -->
+            <div class="step-card" id="card-step1">
+                <div class="step-header">
+                    <div class="step-title-wrap">
+                        <span class="step-num">1</span>
+                        <span class="step-title">Key generation</span>
+                    </div>
+                </div>
+                <div class="code-block" id="step1-body">
+primes        p = 61, q = 53
+modulus       n = p × q = 61 × 53 = <span class="code-hl">3233</span>
+totient       φ(n) = (p-1)(q-1) = 60 × 52 = <span class="code-hl">3120</span>
+public exp.   e = 17, gcd(17, 3120) = 1 <span class="code-check">✓</span>
+private exp.  (e × d) mod φ(n) = 1
+              17 × 2753 = 46801
+              46801 mod 3120 = 1 <span class="code-check">✓</span>  so d = <span class="code-hl">2753</span>
+Public key (e, n) = (<span class="code-hl">17</span>, <span class="code-hl">3233</span>)
+                </div>
+            </div>
+
+            <!-- STEP 2: Encryption -->
+            <div class="step-card" id="card-step2">
+                <div class="step-header">
+                    <div class="step-title-wrap">
+                        <span class="step-num">2</span>
+                        <span class="step-title">Encryption</span>
+                    </div>
+                    <span class="step-subnote" id="step2-note">character-by-character</span>
+                </div>
+                <div class="code-block" id="step2-formula" style="margin-bottom: 12px;">C = M^e mod n    e = 17, n = 3233</div>
+                <div id="step2-list">
+                    <!-- Dynamic char list -->
+                </div>
+            </div>
+
+            <!-- STEP 3: Sent over network -->
+            <div class="step-card" id="card-step3">
+                <div class="step-header">
+                    <div class="step-title-wrap">
+                        <span class="step-num">3</span>
+                        <span class="step-title">Sent over the network <span class="step-subnote">(ciphertext)</span></span>
+                    </div>
+                </div>
+                <div class="cipher-network-container">
+                    <div class="cipher-network" id="step3-cipher">2680 1859 3123 2906 538 368</div>
+                    <button class="btn-copy" id="btn-copy-cipher" onclick="copyCiphertext()">Copy</button>
+                </div>
+            </div>
+
+            <!-- STEP 4: Private key -->
+            <div class="step-card" id="card-step4">
+                <div class="step-header">
+                    <div class="step-title-wrap">
+                        <span class="step-num">4</span>
+                        <span class="step-title">Private key <span class="step-subnote">(not visible to user, never sent over network)</span></span>
+                    </div>
+                </div>
+                <div class="code-block" id="step4-body">
+(d, n) = (<span class="code-hl">2753</span>, <span class="code-hl">3233</span>)
+<span class="code-dim">stays on the server, used only for decryption</span>
+                </div>
+            </div>
+
+            <!-- STEP 5: Decryption -->
+            <div class="step-card" id="card-step5">
+                <div class="step-header">
+                    <div class="step-title-wrap">
+                        <span class="step-num">5</span>
+                        <span class="step-title">Decryption</span>
+                    </div>
+                    <span class="step-subnote">server-side execution</span>
+                </div>
+                <div class="code-block" id="step5-formula" style="margin-bottom: 12px;">M = C^d mod n    d = 2753, n = 3233</div>
+                <div id="step5-list">
+                    <!-- Dynamic decryption list -->
+                </div>
+            </div>
+
+            <!-- STEP 6: Verification -->
+            <div class="step-card" id="card-step6">
+                <div class="step-header">
+                    <div class="step-title-wrap">
+                        <span class="step-num">6</span>
+                        <span class="step-title">Verification</span>
+                    </div>
+                </div>
+                <div class="code-block" id="step6-body">
+decrypted: <span class="code-hl" id="v-decrypted">SRM123</span>
+stored:    <span class="code-hl" id="v-stored">SRM123</span>
+match: <span class="badge-verification" id="v-status">LOGIN SUCCESSFUL</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentMode = 'login'; // 'login', 'register', or 'playground'
+        let lastAuthData = null;
+
+        function setAuthMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(`tab-${mode}`).classList.add('active');
+
+            const authContainer = document.getElementById('auth-form-container');
+            const playContainer = document.getElementById('playground-container');
+
+            if (mode === 'playground') {
+                authContainer.style.display = 'none';
+                playContainer.style.display = 'flex';
+                document.getElementById('badge-auth-mode').textContent = 'PLAYGROUND';
+            } else {
+                authContainer.style.display = 'block';
+                playContainer.style.display = 'none';
+                document.getElementById('badge-auth-mode').textContent = mode.toUpperCase() + ' MODE';
+
+                if (mode === 'register') {
+                    document.getElementById('ui-title').textContent = 'Register';
+                    document.getElementById('btn-submit').textContent = 'Register Account';
+                } else {
+                    document.getElementById('ui-title').textContent = 'Sign in';
+                    document.getElementById('btn-submit').textContent = 'Sign in';
+                }
+                submitAuth();
+            }
+        }
+
+        function loadPreset(preset) {
+            if (preset === 'praveen') {
+                setAuthMode('login');
+                document.getElementById('username-input').value = 'Praveen';
+                document.getElementById('password-input').value = 'SRM123';
+            } else if (preset === 'wrong') {
+                setAuthMode('login');
+                document.getElementById('username-input').value = 'Praveen';
+                document.getElementById('password-input').value = 'WrongPass99';
+            } else if (preset === 'alice') {
+                setAuthMode('register');
+                document.getElementById('username-input').value = 'Alice';
+                document.getElementById('password-input').value = 'Secret42';
+            }
+            submitAuth();
+        }
+
+        function togglePasswordVisibility() {
+            const passInput = document.getElementById('password-input');
+            const btn = document.getElementById('btn-toggle-pass');
+            if (passInput.type === 'text') {
+                passInput.type = 'password';
+                btn.textContent = 'Show';
+            } else {
+                passInput.type = 'text';
+                btn.textContent = 'Hide';
+            }
+        }
+
+        let debounceTimer;
+        function onInputChanged() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                submitAuth();
+            }, 300);
+        }
+
+        async function submitAuth() {
+            const user = document.getElementById('username-input').value.trim() || 'Praveen';
+            const pass = document.getElementById('password-input').value || 'SRM123';
+
+            try {
+                const res = await fetch(`/api/auth?user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}&action=${currentMode}`);
+                const data = await res.json();
+                lastAuthData = data;
+                renderAll(data);
+            } catch (err) {
+                console.error("API error:", err);
+            }
+        }
+
+        async function regenerateKeys() {
+            try {
+                const btn = event.currentTarget;
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<span>⏳</span> Generating Primes...';
+                const res = await fetch('/api/generate');
+                await res.json();
+                await submitAuth();
+                btn.innerHTML = originalText;
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function resetDefaultKeys() {
+            try {
+                await fetch('/api/reset');
+                loadPreset('praveen');
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        async function showRegisteredUsers() {
+            try {
+                const res = await fetch('/api/users');
+                const users = await res.json();
+                alert('Registered User Accounts:\n• ' + users.join('\n• '));
+            } catch (err) {
+                alert('Registered Users:\n• Praveen');
+            }
+        }
+
+        function copyCiphertext() {
+            const txt = document.getElementById('step3-cipher').textContent;
+            navigator.clipboard.writeText(txt).then(() => {
+                const btn = document.getElementById('btn-copy-cipher');
+                btn.textContent = 'Copied!';
+                setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+            });
+        }
+
+        async function runPlaygroundEncrypt() {
+            const txt = document.getElementById('play-plain').value;
+            const res = await fetch(`/api/encrypt?msg=${encodeURIComponent(txt)}`);
+            const data = await res.json();
+            document.getElementById('play-cipher').value = data.ciphertext;
+            document.getElementById('play-result').textContent = `Encrypted: ${data.ciphertext}`;
+        }
+
+        async function runPlaygroundDecrypt() {
+            const cipher = document.getElementById('play-cipher').value;
+            const res = await fetch(`/api/decrypt?txt=${encodeURIComponent(cipher)}`);
+            const data = await res.json();
+            document.getElementById('play-result').textContent = `Decrypted: "${data.plaintext}"`;
+        }
+
+        function renderAll(data) {
+            const key = data.key;
+
+            // 1. Client Pane Updates
+            document.getElementById('client-public-key').textContent = `(${key.e}, ${key.n})`;
+            const statusBox = document.getElementById('status-box');
+            const statusText = document.getElementById('client-login-status');
+            statusText.textContent = data.message;
+
+            if (data.match) {
+                statusBox.className = 'login-status-box success';
+            } else {
+                statusBox.className = 'login-status-box error';
+            }
+
+            // 2. Step 1: Key Generation
+            document.getElementById('step1-body').innerHTML = 
+`primes        p = ${key.p}, q = ${key.q}
+modulus       n = p × q = ${key.p} × ${key.q} = <span class="code-hl">${key.n}</span>
+totient       φ(n) = (p-1)(q-1) = ${key.p - 1} × ${key.q - 1} = <span class="code-hl">${key.phi}</span>
+public exp.   e = ${key.e}, gcd(${key.e}, ${key.phi}) = 1 <span class="code-check">✓</span>
+private exp.  (e × d) mod φ(n) = 1
+              ${key.e} × ${key.d} = ${key.ed}
+              ${key.ed} mod ${key.phi} = 1 <span class="code-check">✓</span>  so d = <span class="code-hl">${key.d}</span>
+Public key (e, n) = (<span class="code-hl">${key.e}</span>, <span class="code-hl">${key.n}</span>)`;
+
+            // 3. Step 2: Encryption
+            document.getElementById('step2-formula').textContent = `C = M^e mod n    e = ${key.e}, n = ${key.n}`;
+            const step2List = document.getElementById('step2-list');
+            step2List.innerHTML = '';
+            data.encryptionSteps.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'enc-char-row';
+                row.innerHTML = `'${escapeHtml(item.char)}'&nbsp;&nbsp;C = ${item.ascii}^${key.e} mod ${key.n}<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= <span class="code-hl">${item.cipher}</span>`;
+                step2List.appendChild(row);
+            });
+
+            // 4. Step 3: Network Ciphertext
+            document.getElementById('step3-cipher').textContent = data.ciphertextStr || '(empty)';
+
+            // 5. Step 4: Private Key
+            document.getElementById('step4-body').innerHTML = 
+`(d, n) = (<span class="code-hl">${key.d}</span>, <span class="code-hl">${key.n}</span>)
+<span class="code-dim">stays on the server, used only for decryption</span>`;
+
+            // 6. Step 5: Decryption
+            document.getElementById('step5-formula').textContent = `M = C^d mod n    d = ${key.d}, n = ${key.n}`;
+            const step5List = document.getElementById('step5-list');
+            step5List.innerHTML = '';
+            data.decryptionSteps.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'enc-char-row';
+                row.innerHTML = `#${item.step}&nbsp;&nbsp;&nbsp;M = ${item.cipher}^${key.d} mod ${key.n}<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= <span class="code-hl">${item.decrypted}</span>`;
+                step5List.appendChild(row);
+            });
+
+            // 7. Step 6: Verification
+            document.getElementById('v-decrypted').textContent = data.decryptedPass || '(none)';
+            document.getElementById('v-stored').textContent = data.storedPass || '(no record)';
+            const vStatus = document.getElementById('v-status');
+            if (data.match) {
+                vStatus.textContent = currentMode === 'register' ? 'REGISTERED & VERIFIED' : 'LOGIN SUCCESSFUL';
+                vStatus.className = 'badge-verification';
+            } else {
+                vStatus.textContent = data.message.toUpperCase();
+                vStatus.className = 'badge-verification error';
+            }
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // Initialize display on load
+        window.addEventListener('DOMContentLoaded', () => {
+            submitAuth();
+        });
+    </script>
+</body>
+</html>
